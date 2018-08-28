@@ -202,6 +202,7 @@ struct ov5640_ctrls {
 	struct v4l2_ctrl *test_pattern;
 	struct v4l2_ctrl *hflip;
 	struct v4l2_ctrl *vflip;
+	struct v4l2_ctrl *pixel_clock;
 };
 
 struct ov5640_dev {
@@ -1434,16 +1435,24 @@ static const struct ov5640_mode_info *
 ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 		 int width, int height, bool nearest)
 {
-	const struct ov5640_mode_info *mode;
+	const struct ov5640_mode_info *mode = NULL;
+	int i;
 
-	mode = v4l2_find_nearest_size(ov5640_mode_data[fr],
-				      ARRAY_SIZE(ov5640_mode_data[fr]),
-				      hact, vact,
-				      width, height);
+	for (i = OV5640_NUM_MODES - 1; i >= 0; i--) {
+		mode = &ov5640_mode_data[fr][i];
 
-	if (!mode ||
-	    (!nearest && (mode->hact != width || mode->vact != height)))
-		return NULL;
+		if (!mode->reg_data)
+			continue;
+
+		if ((nearest && mode->hact <= width &&
+		     mode->vact <= height) ||
+		    (!nearest && mode->hact == width &&
+		     mode->vact == height))
+			break;
+	}
+
+	if (nearest && i < 0)
+		mode = &ov5640_mode_data[fr][0];
 
 	return mode;
 }
@@ -1629,6 +1638,7 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
 	bool auto_gain = sensor->ctrls.auto_gain->val == 1;
 	bool auto_exp =  sensor->ctrls.auto_exp->val == V4L2_EXPOSURE_AUTO;
+	unsigned long pclock;
 	int ret;
 
 	if (!orig_mode)
@@ -1636,6 +1646,11 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 
 	dn_mode = mode->dn_mode;
 	orig_dn_mode = orig_mode->dn_mode;
+
+	pclock = mode->vtot * mode->htot * ov5640_framerates[sensor->current_fr];
+	ret = __v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_clock, pclock);
+	if (ret < 0)
+		 return ret;
 
 	/* auto gain and exposure must be turned off when changing modes */
 	if (auto_gain) {
@@ -2040,6 +2055,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 	sensor->current_mode = new_mode;
 	sensor->fmt = *mbus_fmt;
 	sensor->pending_mode_change = true;
+
 out:
 	mutex_unlock(&sensor->lock);
 	return ret;
@@ -2459,6 +2475,9 @@ static int ov5640_init_controls(struct ov5640_dev *sensor)
 				       V4L2_CID_POWER_LINE_FREQUENCY_AUTO, 0,
 				       V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
 
+	ctrls->pixel_clock = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
+					       1, INT_MAX, 1, 1);
+
 	if (hdl->error) {
 		ret = hdl->error;
 		goto free_ctrls;
@@ -2754,6 +2773,8 @@ static int ov5640_probe(struct i2c_client *client,
 		dev_err(dev, "failed to get xclk\n");
 		return PTR_ERR(sensor->xclk);
 	}
+
+	clk_set_rate(sensor->xclk, 23880000);
 
 	sensor->xclk_freq = clk_get_rate(sensor->xclk);
 	if (sensor->xclk_freq < OV5640_XCLK_MIN ||
