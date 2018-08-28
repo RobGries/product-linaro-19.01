@@ -374,7 +374,7 @@
 			status = "ok";
 
 			camera_rear@3b {
-				compatible = "ovti,ov5645";
+				compatible = "ovti,ov5640";
 				reg = <0x3b>;
 
 				enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
@@ -390,10 +390,10 @@
 				vdda-supply = <&camera_vdda_2v8>;
 				vddd-supply = <&camera_vddd_1v5>;
 
-				status = "disabled";
+				status = "okay";
 
 				port {
-					ov5645_ep: endpoint {
+					ov5640_ep: endpoint {
 						clock-lanes = <1>;
 						data-lanes = <0 2>;
 						remote-endpoint = <&csiphy0_ep>;
@@ -440,8 +440,8 @@
 					csiphy0_ep: endpoint {
 						clock-lanes = <1>;
 						data-lanes = <0 2>;
-						remote-endpoint = <&ov5645_ep>;
-						status = "disabled";
+						remote-endpoint = <&ov5640_ep>;
+						status = "okay";
 					};
 				};
 				port@1 {
