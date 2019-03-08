@@ -140,7 +140,7 @@ MODULE_PARM_DESC(virtual_channel,
 
 static const int ov5640_framerates[] = {
 	[OV5640_15_FPS] = 15,
-	[OV5640_30_FPS] = 30,
+	[OV5640_30_FPS] = 15,
 };
 
 /* regulator supplies */
