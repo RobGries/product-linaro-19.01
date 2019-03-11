@@ -1647,11 +1647,9 @@ static int ov5640_set_mode(struct ov5640_dev *sensor,
 	dn_mode = mode->dn_mode;
 	orig_dn_mode = orig_mode->dn_mode;
 
-	printk(KERN_INFO "[*] ov5640: calc pclk == mode->vtot = %lu * mode->vtot = %lu * frame_rate = %d", mode->vtot, mode->htot, ov5640_framerates[sensor->current_fr]);
-	//pclock = mode->vtot * mode->htot * ov5640_framerates[sensor->current_fr] / 2;
-	pclock = 96000000;
-	//pclock = 168000000;
-	printk(KERN_INFO "[WARN] ov5640: fudged pixel_clock == %lu", pclock);
+	printk(KERN_INFO "[*] ov5640: mode->vtot = %lu, mode->vtot = %lu, frame_rate = %d", mode->vtot, mode->htot, ov5640_framerates[sensor->current_fr]);
+	pclock = mode->vtot * mode->htot * ov5640_framerates[sensor->current_fr] / 2;
+	printk(KERN_INFO "[*] ov5640: calculated pixel_clock == %lu", pclock);
 
 	ret = __v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_clock, pclock);
 	if (ret < 0)
